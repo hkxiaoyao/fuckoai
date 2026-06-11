@@ -1242,6 +1242,17 @@ def generate_random_local_part(length: int = 10) -> str:
     return "".join(random.choices(alphabet, k=length))
 
 
+def normalize_email_prefix(value: Any, random_length: int = 10) -> str:
+    prefix = str(value or "").strip()
+    if not prefix:
+        return ""
+    if not re.fullmatch(r"[A-Za-z0-9._+-]+", prefix):
+        raise ValueError("邮箱前缀只能包含字母、数字、点、下划线、加号和短横线")
+    if len(prefix) + random_length > 64:
+        raise ValueError(f"邮箱前缀最多 {64 - random_length} 个字符")
+    return prefix
+
+
 def normalize_email_lines(value: Any) -> list[str]:
     if isinstance(value, list):
         raw_items = value
@@ -1262,14 +1273,15 @@ def normalize_email_lines(value: Any) -> list[str]:
     return emails
 
 
-def generate_random_emails(domain: str, total: int) -> list[str]:
+def generate_random_emails(domain: str, total: int, prefix: str = "") -> list[str]:
     normalized_domain = domain.strip()
     if not normalized_domain:
         raise ValueError("请填写邮箱后缀域名，例如 example.com")
+    normalized_prefix = normalize_email_prefix(prefix)
     results: list[str] = []
     seen: set[str] = set()
     while len(results) < total:
-        address = f"{generate_random_local_part()}@{normalized_domain}"
+        address = f"{normalized_prefix}{generate_random_local_part()}@{normalized_domain}"
         if address in seen:
             continue
         seen.add(address)
@@ -1284,6 +1296,7 @@ def default_email_queue() -> dict[str, Any]:
         "activeEmail": "",
         "activeStartedAt": "",
         "lastMail": None,
+        "randomPrefix": "",
     }
 
 
@@ -1299,6 +1312,7 @@ def load_email_queue() -> dict[str, Any]:
             "activeEmail": str(data.get("activeEmail") or "").strip() if isinstance(data, dict) else "",
             "activeStartedAt": str(data.get("activeStartedAt") or "").strip() if isinstance(data, dict) else "",
             "lastMail": data.get("lastMail") if isinstance(data, dict) else None,
+            "randomPrefix": normalize_email_prefix(data.get("randomPrefix") if isinstance(data, dict) else ""),
         }
     )
     return queue
@@ -1324,7 +1338,8 @@ def update_email_queue(payload: dict[str, Any]) -> dict[str, Any]:
 
 def generate_email_queue(payload: dict[str, Any]) -> dict[str, Any]:
     total = parse_positive_int(payload.get("total"), default=1)
-    emails = generate_random_emails(str(payload.get("domain") or ""), total)
+    prefix = normalize_email_prefix(payload.get("prefix"))
+    emails = generate_random_emails(str(payload.get("domain") or ""), total, prefix)
     return save_email_queue({
         **load_email_queue(),
         "emails": emails,
@@ -1332,6 +1347,7 @@ def generate_email_queue(payload: dict[str, Any]) -> dict[str, Any]:
         "activeEmail": "",
         "activeStartedAt": "",
         "lastMail": None,
+        "randomPrefix": prefix,
     })
 
 

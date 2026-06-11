@@ -365,6 +365,10 @@
                 <label for="emailCurrent">当前邮箱</label>
                 <input id="emailCurrent" placeholder="启动后显示">
               </div>
+              <div class="field">
+                <label for="randomPrefix">邮箱前缀（可选）</label>
+                <input id="randomPrefix" placeholder="user-" autocomplete="off">
+              </div>
             </div>
             <div class="field">
               <label for="randomDomain">邮箱后缀域名</label>
@@ -1031,6 +1035,9 @@
       const emails = queue.emails || [];
       $("emailQueueText").value = emails.join("\n");
       $("emailCurrent").value = queue.activeEmail || emails[queue.cursor || 0] || "";
+      if (Object.prototype.hasOwnProperty.call(queue, "randomPrefix")) {
+        $("randomPrefix").value = queue.randomPrefix || "";
+      }
       const position = emails.length ? `${(queue.cursor || 0) + 1}/${emails.length}` : "0/0";
       $("emailQueueState").textContent = `队列 ${position} 当前=${$("emailCurrent").value || "--"}`;
     }
@@ -1068,6 +1075,7 @@
       const payload = await requestJSON("POST", "/api/email-queue/generate", {
         domain: $("randomDomain").value.trim(),
         total: $("emailTotal").value.trim(),
+        prefix: $("randomPrefix").value.trim(),
       });
       updateEmailQueueUI(payload.emailQueue || payload);
       log({ message: "邮箱列表已生成", emailQueue: payload.emailQueue || payload });
