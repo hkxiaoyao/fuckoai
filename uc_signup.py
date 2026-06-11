@@ -192,6 +192,32 @@ class SignupBot:
                     time.sleep(2)
         raise StepError(f"点击失败(已重试{retries}次): {text}")
 
+    def click_optional(self, text, wait_seconds=5):
+        """点击可选按钮；不存在或点不了时跳过，不阻断流程。"""
+        deadline = time.time() + wait_seconds
+        last_error = None
+        while True:
+            self.wait_ready(timeout=2)
+            btn = self._find_button(text)
+            if btn:
+                try:
+                    log(f"  点击可选按钮: {btn.text.strip()[:50]}")
+                    ActionChains(self.d).move_to_element(btn).click().perform()
+                    time.sleep(3)
+                    return True
+                except Exception as e:
+                    last_error = e
+
+            if time.time() >= deadline:
+                break
+            time.sleep(1)
+
+        if last_error:
+            log(f"  可选按钮点击失败，跳过: {text} ({last_error})", "warn")
+        else:
+            log(f"  可选按钮不存在，跳过: {text}")
+        return False
+
     def fill(self, selector, value, retries=MAX_RETRIES):
         """填输入框"""
         for attempt in range(retries):
@@ -326,7 +352,7 @@ class SignupBot:
         time.sleep(12)
         log(f"注册: {self.d.title}")
 
-        self._step("Cookie", lambda: self.click("Accept all"))
+        self._step("Cookie", lambda: self.click_optional("Accept all"))
 
         self._step("展开手机表单", lambda: (
             self.click("Continue with phone"), time.sleep(4)
